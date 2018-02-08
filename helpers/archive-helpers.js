@@ -1,6 +1,9 @@
 var fs = require('fs');
 var path = require('path');
 var _ = require('underscore');
+var fetcher = require('../workers/htmlFetcher');
+var CronJob = require('cron').CronJob;
+
 
 /*
  * You will need to reuse the same paths many times over in the course of this sprint.
@@ -23,15 +26,23 @@ exports.initialize = function(pathsObj) {
 };
 
 var urlPath = exports.paths.list;
+var archivePath = exports.paths.archivedSites;
 
 // The following function names are provided to you to suggest how you might
 // modularize your code. Keep it clean!
 
 exports.readListOfUrls = function(callback) {
   fs.readFile(urlPath, 'utf8', function(err, data) {
-    list = data.substring(0, data.length - 1).split('~').map(function(urlTup) {
-      return JSON.parse(urlTup);
-    });
+    if (err) {
+      console.log(err, ' = Readfile error');
+    }
+    if (data) {
+      list = data.substring(0, data.length - 1).split('~').map(function(urlTup) {
+        return JSON.parse(urlTup);
+      });
+    } else {
+      list = [];
+    }
     if (callback) {
       callback(list);
     }
@@ -65,13 +76,58 @@ exports.addUrlToList = function(url, callback) {
 };
 
 exports.isUrlArchived = function(url, callback) {
-  var urlList = exports.readListOfUrls();
-  urlList.forEach(function(urlTup) {
-    if (urlTup[0] === url) {
-      return urlTup[1];
+  fs.lstat(archivePath + url, callback);
+};
+
+exports.writePage = function(website, name) {
+  fs.writeFile(archivePath + name, website, function(err) {
+    if (err) {
+      console.log('Error: ', err);
     }
+    console.log('Site archived!');
   });
 };
 
 exports.downloadUrls = function(urls) {
+  urls.forEach(function(url) {
+    fetcher.fetchPage(url, (website) => {
+      exports.writePage(website, url);
+    });
+  });
 };
+
+exports.readPage = function(webpage, res, callback) {
+  if (!req) {
+    res.writeHead(404);
+    res.end();
+  }
+  res.writeHead(200, {'Content-Type': 'text/html'});
+  res.write(webpage);
+  res.end();
+};
+
+exports.renderPage = function(url, res, err, stats) {
+  if (err) {
+    exports.addUrlToList(url);
+  } else {
+    fs.readFile(archivePath + url, function(err, data) {
+      if (err) {
+        exports.readPage(null, req);
+      } else {
+        exports.readPage(data, req);
+      }
+    });
+  }
+};
+
+exports.requestPage = function(url, res) {
+  exports.isUrlArchived(url, exports.renderPage.bind(this, url, res));
+};
+
+new CronJob('* * * * * *', function() {
+  console.log('Job every minute');
+  var unarchived = [];
+  var getPages = function(list) {
+    downloadUrls(list);
+  };
+}, null, true, 'America/Los_Angeles');

@@ -11,7 +11,7 @@ exports.handleRequest = function (req, res) {
     } else if (req.url === '/styles.css') {
       httpHelper.serveAssets(res, 'css');
     } else {
-      res.end(archive.paths.list);
+      //res.end(archive.paths.list);
     }
   } else if (req.method === 'POST') {
     var body = '';
@@ -19,8 +19,10 @@ exports.handleRequest = function (req, res) {
       body += chunk;
     }).on('end', () => {
       body = querystring.parse(body);
-      archive.addUrlToList(body.url);
       console.log('Body: ', body);
+      res.writeHead(201, httpHelper.headers);
+      archive.requestPage(body.url, res);
+      //res.end();
     });
   }
 };
