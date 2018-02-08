@@ -144,7 +144,7 @@ exports.requestPage = function(url, res) {
   exports.isUrlArchived(url, exports.renderPage.bind(this, res));
 };
 
-new CronJob('* * * * * *', function() {
+new CronJob('* * * * * 1', function() {
   console.log('Job every minute');
   var unarchived = [];
   var getPages = function(list) {
